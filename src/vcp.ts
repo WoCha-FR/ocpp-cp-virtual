@@ -23,6 +23,9 @@ import {
 import { TransactionManager } from "./transactionManager";
 import { heartbeatOcppMessage } from "./v16/messages/heartbeat";
 
+import fs from "node:fs";
+import { adminPage } from "../admin/adminui"
+
 interface VCPOptions {
   ocppVersion: OcppVersion;
   endpoint: string;
@@ -50,6 +53,7 @@ export class VCP {
   constructor(private vcpOptions: VCPOptions) {
     this.messageHandler = resolveMessageHandler(vcpOptions.ocppVersion);
     if (vcpOptions.adminPort) {
+      const cpNbSockets = Number.parseInt(process.env.CP_NB_SOCKETS ?? "1");
       const adminApi = new Hono();
       adminApi.post(
         "/execute",
@@ -66,6 +70,15 @@ export class VCP {
           return c.text("OK");
         },
       );
+      /* admin page */
+      adminApi.get("/", (c) => {
+        return c.html(adminPage(vcpOptions.chargePointId, cpNbSockets));
+      });
+      /* Admin logs endpoint */
+      adminApi.post("/logs", async (c) => {
+        const file = fs.readFileSync('./vcp.log', 'utf-8');
+        return c.text(file);
+      });
       serve({
         fetch: adminApi.fetch,
         port: vcpOptions.adminPort,
@@ -94,7 +107,7 @@ export class VCP {
       this.ws.on("open", () => resolve());
       this.ws.on("message", (message: string) => this._onMessage(message));
       this.ws.on("ping", () => {
-        logger.info("Received PING");
+        // logger.info("Received PING");
       });
       this.ws.on("pong", () => {
         logger.info("Received PONG");

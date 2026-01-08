@@ -60,7 +60,7 @@ export class TransactionManager {
   stopTransaction(transactionId: TransactionId) {
     const transaction = this.transactions.get(transactionId);
     if (transaction?.meterValuesTimer) {
-      clearInterval(transaction.meterValuesTimer);
+      clearInterval(Number(transaction.meterValuesTimer));
     }
     this.transactions.delete(transactionId);
   }

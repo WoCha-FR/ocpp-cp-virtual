@@ -1,0 +1,16 @@
+services:
+  ocpp-virtual-cp:
+    container_name: ocpp-virtual-cp
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      - WS_URL=ws://localhost:3000
+      - CP_ID=vcp_16_test
+      - CP_TYPE=16
+      - CP_NB_SOCKETS=1
+      - ADMIN_PORT=9999
+    ports:
+      - "9999:9999"
+    restart: unless-stopped
+    entrypoint: [ "node", "dist/start.js" ]
