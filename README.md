@@ -33,6 +33,7 @@ CP_VENDOR - Chargepoint vendor, can be left blank
 CP_MODEL - Chargepoint model, can be left blank
 CP_SN - Chargepoint serial Number, can be left blank
 CP_FW_VERSION - Chargepoint serial number, can be left blank
+CP_METER_INTERVALSEC - Interval in seconds for metervalue in transaction, can be left blank
 ```
 
 Run OCPP 1.6:

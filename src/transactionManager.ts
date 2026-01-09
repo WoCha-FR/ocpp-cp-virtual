@@ -1,6 +1,7 @@
 import type { VCP } from "./vcp";
 
-const METER_VALUES_INTERVAL_SEC = 15;
+const mvis = Number.parseInt(process.env.CP_METER_INTERVALSEC ?? "15");
+const METER_VALUES_INTERVAL_SEC = mvis;
 
 type TransactionId = string | number;
 
@@ -71,5 +72,13 @@ export class TransactionManager {
       return 0;
     }
     return (new Date().getTime() - transaction.startedAt.getTime()) / 100;
+  }
+
+  getConnectorId(transactionId: TransactionId) {
+    const transaction = this.transactions.get(transactionId);
+    if (!transaction) {
+      return 0;
+    }
+    return transaction.connectorId;
   }
 }

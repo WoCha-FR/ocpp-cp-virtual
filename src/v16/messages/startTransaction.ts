@@ -7,6 +7,8 @@ import {
 import type { VCP } from "../../vcp";
 import { ConnectorIdSchema, IdTagInfoSchema, IdTokenSchema } from "./_common";
 import { meterValuesOcppMessage } from "./meterValues";
+import { stopTransactionOcppMessage } from "./stopTransaction";
+import { statusNotificationOcppMessage } from "./statusNotification";
 
 const StartTransactionReqSchema = z.object({
   connectorId: ConnectorIdSchema,
@@ -32,6 +34,28 @@ class StartTransactionOcppMessage extends OcppOutgoing<
     call: OcppCall<z.infer<StartTransactionReqType>>,
     result: OcppCallResult<z.infer<StartTransactionResType>>,
   ): Promise<void> => {
+    /* Valid transaction ? */
+    if (result.payload.idTagInfo.status !== "Accepted") {
+      vcp.send(
+        stopTransactionOcppMessage.request({
+          idTag: call.payload.idTag,
+          meterStop: 0,
+          timestamp: new Date().toISOString(),
+          transactionId: result.payload.transactionId,
+        }),
+      );
+      return;
+    }
+    /* Charging Status */
+    vcp.send(
+      statusNotificationOcppMessage.request({
+        connectorId: call.payload.connectorId,
+        errorCode: "NoError",
+        status: "Charging",
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    /* Start Transaction in Transaction Manager */
     vcp.transactionManager.startTransaction(vcp, {
       transactionId: result.payload.transactionId,
       idTag: call.payload.idTag,
