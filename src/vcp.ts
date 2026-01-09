@@ -82,6 +82,7 @@ export class VCP {
       serve({
         fetch: adminApi.fetch,
         port: vcpOptions.adminPort,
+        hostname: "0.0.0.0",
       });
     }
   }
