@@ -66,11 +66,18 @@ export class VCP {
         ),
         (c) => {
           const validated = c.req.valid("json");
+          /* Get meter values on StopTransaction*/
+          if (validated.action === "StopTransaction") {
+            validated.payload.meterStop = this.transactionManager.getMeterValue(
+              validated.payload.transactionId,
+            );
+          }
+          /* Execute OCPP Action */
           this.send(call(validated.action, validated.payload));
           return c.text("OK");
         },
       );
-      /* admin page */
+      /* Admin Page - Only V16 */
       adminApi.get("/", (c) => {
         return c.html(adminPage(vcpOptions.chargePointId, cpNbSockets));
       });

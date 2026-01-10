@@ -1,5 +1,6 @@
 import type { VCP } from "./vcp";
 
+const POWER = Number.parseFloat(process.env.POWER ?? "1");
 const mvis = Number.parseInt(process.env.CP_METER_INTERVALSEC ?? "15");
 const METER_VALUES_INTERVAL_SEC = mvis;
 
@@ -35,6 +36,7 @@ export class TransactionManager {
   }
 
   startTransaction(vcp: VCP, startTransactionProps: StartTransactionProps) {
+    /* Timer callback to send meter values periodically */
     const meterValuesTimer = setInterval(() => {
       // biome-ignore lint/style/noNonNullAssertion: transaction must exist
       const currentTransactionState = this.transactions.get(
@@ -47,6 +49,7 @@ export class TransactionManager {
         meterValue: this.getMeterValue(startTransactionProps.transactionId),
       });
     }, METER_VALUES_INTERVAL_SEC * 1000);
+
     this.transactions.set(startTransactionProps.transactionId, {
       transactionId: startTransactionProps.transactionId,
       idTag: startTransactionProps.idTag,
@@ -71,13 +74,18 @@ export class TransactionManager {
     if (!transaction) {
       return 0;
     }
-    return (new Date().getTime() - transaction.startedAt.getTime()) / 100;
+    const chargePower = POWER * 1000; // kW
+    const timeMs = (new Date().getTime() - transaction.startedAt.getTime());
+    const time = timeMs / 3600000;
+    const energy = Math.floor(transaction.meterValue + (chargePower * time));
+    return energy;
+    //return (new Date().getTime() - transaction.startedAt.getTime()) / 100;
   }
 
   getConnectorId(transactionId: TransactionId) {
     const transaction = this.transactions.get(transactionId);
     if (!transaction) {
-      return 0;
+      return 1;
     }
     return transaction.connectorId;
   }

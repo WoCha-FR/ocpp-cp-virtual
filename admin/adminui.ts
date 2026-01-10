@@ -191,6 +191,7 @@ function generateConnectorControls16(connectors: number): string {
                 transactionId: parseInt(transactionId),
                 timestamp: new Date().toISOString(),
                 meterStop: 2000,
+                reason: 'Local'
               }
             })
           });

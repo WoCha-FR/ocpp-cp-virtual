@@ -10,6 +10,8 @@ import { meterValuesOcppMessage } from "./meterValues";
 import { stopTransactionOcppMessage } from "./stopTransaction";
 import { statusNotificationOcppMessage } from "./statusNotification";
 
+const POWER = Number.parseFloat(process.env.POWER ?? "7");
+
 const StartTransactionReqSchema = z.object({
   connectorId: ConnectorIdSchema,
   idTag: IdTokenSchema,
@@ -42,6 +44,7 @@ class StartTransactionOcppMessage extends OcppOutgoing<
           meterStop: 0,
           timestamp: new Date().toISOString(),
           transactionId: result.payload.transactionId,
+          reason: "DeAuthorized",
         }),
       );
       return;
@@ -73,6 +76,13 @@ class StartTransactionOcppMessage extends OcppOutgoing<
                     value: (transactionState.meterValue / 1000).toString(),
                     measurand: "Energy.Active.Import.Register",
                     unit: "kWh",
+                    context: "Sample.Periodic",
+                  },
+                  {
+                    value: POWER.toFixed(3),
+                    measurand: "Power.Active.Import",
+                    unit: "kW",
+                    context: "Sample.Periodic",
                   },
                 ],
               },
@@ -81,6 +91,23 @@ class StartTransactionOcppMessage extends OcppOutgoing<
         );
       },
     });
+    /* Meter Values Transaction begin */
+    vcp.send(
+      meterValuesOcppMessage.request({
+        connectorId: call.payload.connectorId,
+        transactionId: result.payload.transactionId,
+        meterValue: [
+          { timestamp: call.payload.timestamp, sampledValue: [
+            {
+              value: "0",
+              measurand: "Energy.Active.Import.Register",
+              unit: "kWh",
+              context: "Transaction.Begin",
+            },
+          ]},
+        ],
+      }),
+    );
   };
 }
 
