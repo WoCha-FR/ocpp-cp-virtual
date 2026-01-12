@@ -22,6 +22,7 @@ import {
 } from "./schemaValidator";
 import { TransactionManager } from "./transactionManager";
 import { heartbeatOcppMessage } from "./v16/messages/heartbeat";
+import { stopTransactionOcppMessage } from "./v16/messages/stopTransaction";
 
 import fs from "node:fs";
 import { adminPage } from "../admin/adminui"
@@ -52,6 +53,10 @@ export class VCP {
 
   constructor(private vcpOptions: VCPOptions) {
     this.messageHandler = resolveMessageHandler(vcpOptions.ocppVersion);
+
+    process.on('SIGINT', this.preClose.bind(this, 0));
+    process.on('SIGTERM', this.preClose.bind(this, 0));
+
     if (vcpOptions.adminPort) {
       const cpNbSockets = Number.parseInt(process.env.CP_NB_SOCKETS ?? "1");
       const cpVendor = process.env.CP_VENDOR ?? "Solidstudio";
@@ -189,6 +194,23 @@ export class VCP {
     }, interval);
   }
 
+  async preClose(exitCode: number) {
+    logger.info('The process is shutting down...')
+    if (exitCode || exitCode === 0) logger.info(`Exit code: ${exitCode}`)
+    // Stop Transactions
+    if (toProtocolVersion(this.vcpOptions.ocppVersion) === "ocpp1.6") {
+      this.transactionManager.transactions.forEach((_, tId) => {
+        logger.info(`Stopping transaction ${tId} before closing connection`);
+        this.send(stopTransactionOcppMessage.request({
+          transactionId: Number(tId),
+          timestamp: new Date().toISOString(),
+          meterStop: this.transactionManager.getMeterValue(Number(tId)),
+          reason: "EmergencyStop",
+        }));
+      });
+    }
+    this.close();
+  }
   close() {
     if (!this.ws) {
       throw new Error(
