@@ -1,14 +1,53 @@
 import { htmlHeader } from "./ui/header";
 import { htmlFooter } from "./ui/footer";
 
-function generateConnectorControls16(connectors: number): string {
-  let controlsHtml = '';
+function generateConnectorControls16(connectors: number, cpVendor: string, cpModel: string, cpSerialN: string, cpFwVersion: string): string {
+  /* Charger Controls */
+  let controlsHtml = `
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-12 col-lg-6">
+          <div class="btn-group btn-group-sm w-100" role="group" aria-label="Charger Status Controls">
+            <button class="btn btn-outline-light" onclick="setStatus(0, 'Available')">Set Globaly Available</button>
+            <button class="btn btn-outline-light" onclick="setStatus(0, 'Unavailable')">Set Globaly Unavailable</button>
+            <button class="btn btn-outline-light" onclick="sendHeartbeat()">Send Heartbeat</button>
+            <button class="btn btn-outline-light" onclick="sendBootNotification()">Send BootNotification</button>
+          </div>
+        </div>
+        <div class="col-12 col-lg-3">
+          <form class="row row-cols-lg-auto g-3 align-items-center" onsubmit="event.preventDefault(); sendAuthorize(document.getElementById('idTag').value);">
+            <div class="col-12">
+              <input type="text" class="form-control form-control-sm" id="idTag" placeholder="Enter idTag" required>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-sm btn-outline-light">Send Authorize</button>
+            </div>
+          </form>
+        </div>
+        <div class="col-12 col-lg-3">
+          <form class="row row-cols-lg-auto g-3 align-items-center" onsubmit="event.preventDefault(); sendStopTransaction(document.getElementById('stopTransactionId').value);">
+            <div class="col-12">
+              <input type="text" class="form-control form-control-sm" id="stopTransactionId" placeholder="Enter Transaction ID" required>
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-sm btn-outline-light">Send StopTransaction</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div id="result">&nbsp;</div>
+    </div>
+  </div>`;
+  /* Connectors Controls */
   for (let i = 1; i <= connectors; i++) {
     controlsHtml += `
       <div class="card mb-3">
         <div class="card-header">Connector #${i}</div>
         <div class="card-body">
-          <div class="row">
+          <div class="row mb-3">
             <div class="col-12 col-lg-6">
               <div class="btn-group btn-group-sm w-100" role="group" aria-label="Connector ${i} Status Controls">
                 <button class="btn btn-outline-light" onclick="setStatus(${i}, 'Available')">Set Available</button>
@@ -17,7 +56,7 @@ function generateConnectorControls16(connectors: number): string {
                 <button class="btn btn-outline-light" onclick="setStatus(${i}, 'Reserved')">Set Reserved</button>
               </div>
             </div>
-            <div class="col-12 col-lg-6">
+            <div class="col-12 col-lg-3">
               <form class="row row-cols-lg-auto g-3 align-items-center" onsubmit="event.preventDefault(); setStatus(${i}, 'Faulted',document.getElementById('faultCode-${i}').value);">
                 <div class="col-12">
                   <select class="form-select form-select-sm" id="faultCode-${i}">
@@ -42,35 +81,13 @@ function generateConnectorControls16(connectors: number): string {
                 </div>
               </form>
             </div>
-          </div>
-          <div class="row">
-            <div class="col-12 col-lg-4">
-              <form class="row row-cols-lg-auto g-3 align-items-center mt-3" onsubmit="event.preventDefault(); sendAuthorize(${i}, document.getElementById('idTag-${i}').value);">
-                <div class="col-12">
-                  <input type="text" class="form-control form-control-sm" id="idTag-${i}" placeholder="Enter idTag" required>
-                </div>
-                <div class="col-12">
-                  <button type="submit" class="btn btn-sm btn-outline-light">Send Authorize</button>
-                </div>
-              </form>
-            </div>
-            <div class="col-12 col-lg-4">
-              <form class="row row-cols-lg-auto g-3 align-items-center mt-3" onsubmit="event.preventDefault(); sendStartTransaction(${i}, document.getElementById('startIdTag-${i}').value);">
+            <div class="col-12 col-lg-3">
+              <form class="row row-cols-lg-auto g-3 align-items-center" onsubmit="event.preventDefault(); sendStartTransaction(${i}, document.getElementById('startIdTag-${i}').value);">
                 <div class="col-12">
                   <input type="text" class="form-control form-control-sm" id="startIdTag-${i}" placeholder="Enter idTag" required>
                 </div>
                 <div class="col-12">
                   <button type="submit" class="btn btn-sm btn-outline-light">Send StartTransaction</button>
-                </div>
-              </form>
-            </div>
-            <div class="col-12 col-lg-4">
-              <form class="row row-cols-lg-auto g-3 align-items-center mt-3" onsubmit="event.preventDefault(); sendStopTransaction(${i}, document.getElementById('stopTransactionId-${i}').value);">
-                <div class="col-12">
-                  <input type="text" class="form-control form-control-sm" id="stopTransactionId-${i}" placeholder="Enter Transaction ID" required>
-                </div>
-                <div class="col-12">
-                  <button type="submit" class="btn btn-sm btn-outline-light">Send StopTransaction</button>
                 </div>
               </form>
             </div>
@@ -84,6 +101,92 @@ function generateConnectorControls16(connectors: number): string {
   }
   const constrolsScript = `
     <script>
+      async function sendHeartbeat() {
+        const resultDivId = 'result';
+        let resultDiv = document.getElementById(resultDivId);
+        resultDiv.textContent = 'Sending Heartbeat...';
+        try {
+          const response = await fetch('/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'Heartbeat',
+              payload: {}
+            })
+          });
+          if (response.ok) {
+            resultDiv.textContent = 'Heartbeat sent successfully!';
+            resultDiv.style.color = 'green';
+          } else {
+            resultDiv.textContent = 'Error: ' + response.status;
+            resultDiv.style.color = 'red';
+          }
+        } catch (error) {
+          resultDiv.textContent = 'Error: ' + error.message;
+          resultDiv.style.color = 'red';
+        }
+        setTimeout(() => { resultDiv.textContent = '\u00A0'; }, 5000);
+      }
+      async function sendAuthorize(idTag) {
+        const resultDivId = 'result';
+        let resultDiv = document.getElementById(resultDivId);
+        resultDiv.textContent = 'Sending authorization...';
+        try {
+          const response = await fetch('/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'Authorize',
+              messageId: uuidv4(),
+              payload: {
+                idTag: idTag
+              }
+            })
+          });
+          if (response.ok) {
+            resultDiv.textContent = 'Authorization for idTag ' + idTag + ' sent successfully!';
+            resultDiv.style.color = 'green';
+          } else {
+            resultDiv.textContent = 'Error: ' + response.status;
+            resultDiv.style.color = 'red';
+          }
+        } catch (error) {
+          resultDiv.textContent = 'Error: ' + error.message;
+          resultDiv.style.color = 'red';
+        }
+        setTimeout(() => { resultDiv.textContent = '\u00A0'; }, 5000);
+      }
+      async function sendBootNotification() {
+        const resultDivId = 'result';
+        let resultDiv = document.getElementById(resultDivId);
+        resultDiv.textContent = 'Sending BootNotification...';
+        try {
+          const response = await fetch('/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'BootNotification',
+              payload: {
+                chargePointVendor: "${cpVendor}",
+                chargePointModel: "${cpModel}",
+                chargePointSerialNumber: "${cpSerialN}",
+                firmwareVersion: "${cpFwVersion}"
+              }
+            })
+          });
+          if (response.ok) {
+            resultDiv.textContent = 'BootNotification sent successfully!';
+            resultDiv.style.color = 'green';
+          } else {
+            resultDiv.textContent = 'Error: ' + response.status;
+            resultDiv.style.color = 'red';
+          }
+        } catch (error) {
+          resultDiv.textContent = 'Error: ' + error.message;
+          resultDiv.style.color = 'red';
+        }
+        setTimeout(() => { resultDiv.textContent = '\u00A0'; }, 5000);
+      }
       async function setStatus(connectorId, status, errorCode = 'NoError') {
         const resultDivId = 'result-' + connectorId;
         let resultDiv = document.getElementById(resultDivId);
@@ -104,35 +207,6 @@ function generateConnectorControls16(connectors: number): string {
           });
           if (response.ok) {
             resultDiv.textContent = 'Status for connector ' + connectorId + ' set to ' + status + ' successfully!';
-            resultDiv.style.color = 'green';
-          } else {
-            resultDiv.textContent = 'Error: ' + response.status;
-            resultDiv.style.color = 'red';
-          }
-        } catch (error) {
-          resultDiv.textContent = 'Error: ' + error.message;
-          resultDiv.style.color = 'red';
-        }
-        setTimeout(() => { resultDiv.textContent = '\u00A0'; }, 5000);
-      }
-      async function sendAuthorize(connectorId, idTag) {
-        const resultDivId = 'result-' + connectorId;
-        let resultDiv = document.getElementById(resultDivId);
-        resultDiv.textContent = 'Sending authorization...';
-        try {
-          const response = await fetch('/execute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'Authorize',
-              messageId: uuidv4(),
-              payload: {
-                idTag: idTag
-              }
-            })
-          });
-          if (response.ok) {
-            resultDiv.textContent = 'Authorization for connector ' + connectorId + ' with idTag ' + idTag + ' sent successfully!';
             resultDiv.style.color = 'green';
           } else {
             resultDiv.textContent = 'Error: ' + response.status;
@@ -176,8 +250,8 @@ function generateConnectorControls16(connectors: number): string {
         }
         setTimeout(() => { resultDiv.textContent = '\u00A0'; }, 5000);
       }
-      async function sendStopTransaction(connectorId, transactionId) {
-        const resultDivId = 'result-' + connectorId;
+      async function sendStopTransaction(transactionId) {
+        const resultDivId = 'result';
         let resultDiv = document.getElementById(resultDivId);
         resultDiv.textContent = 'Sending StopTransaction...';
         try {
@@ -196,7 +270,7 @@ function generateConnectorControls16(connectors: number): string {
             })
           });
           if (response.ok) {
-            resultDiv.textContent = 'StopTransaction for connector ' + connectorId + ' with transaction ID ' + transactionId + ' sent successfully!';
+            resultDiv.textContent = 'StopTransaction with transaction ID ' + transactionId + ' sent successfully!';
             resultDiv.style.color = 'green';
           } else {
             resultDiv.textContent = 'Error: ' + response.status;
@@ -219,13 +293,13 @@ function generateConnectorControls16(connectors: number): string {
   return controlsHtml;
 }
 
-export const adminPage = (chargePointId: string, connectors: number) => `
+export const adminPage = (chargePointId: string, connectors: number, cpVendor: string, cpModel: string, cpSerialN: string, cpFwVersion: string) => `
 ${htmlHeader}
 <div class="container-fluid text-center bg-body-tertiary mb-3">
   <h2>${chargePointId}</h2>
 </div>
 <main class="container-fluid">
-` + generateConnectorControls16(connectors) + `
+` + generateConnectorControls16(connectors, cpVendor, cpModel, cpSerialN, cpFwVersion) + `
 </main>
 ${htmlFooter}
 `;

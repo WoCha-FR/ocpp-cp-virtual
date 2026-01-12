@@ -54,6 +54,11 @@ export class VCP {
     this.messageHandler = resolveMessageHandler(vcpOptions.ocppVersion);
     if (vcpOptions.adminPort) {
       const cpNbSockets = Number.parseInt(process.env.CP_NB_SOCKETS ?? "1");
+      const cpVendor = process.env.CP_VENDOR ?? "Solidstudio";
+      const cpModel = process.env.CP_MODEL ?? "VirtualChargePoint";
+      const cpSerialN = process.env.CP_SN ?? "VCP-0001";
+      const cpFwVersion = process.env.CP_FW_VERSION ?? "1.0.0";
+
       const adminApi = new Hono();
       adminApi.post(
         "/execute",
@@ -79,7 +84,7 @@ export class VCP {
       );
       /* Admin Page - Only V16 */
       adminApi.get("/", (c) => {
-        return c.html(adminPage(vcpOptions.chargePointId, cpNbSockets));
+        return c.html(adminPage(vcpOptions.chargePointId, cpNbSockets, cpVendor, cpModel, cpSerialN, cpFwVersion));
       });
       /* Admin logs endpoint */
       adminApi.post("/logs", async (c) => {

@@ -1,7 +1,7 @@
 export const htmlFooter = `
     <footer class="footer mt-auto py-0">
       <div class="container-fluid text-center">
-        <textarea readonly class="form-control form-control-sm" id="result" rows="8"></textarea>
+        <textarea readonly class="form-control form-control-sm" id="reslogs" rows="8"></textarea>
       </div>
       <div class="container-fluid text-center bg-body-tertiary">
         <span class="text-body-secondary font-monospace" style="font-size:small">&copy;2025</span>
@@ -16,7 +16,7 @@ export const htmlFooter = `
           }
         });
         const logs = await response.text();
-        const resultDiv = document.getElementById('result');
+        const resultDiv = document.getElementById('reslogs');
         let logarr = logs.split('\\n');
         logarr.reverse();
         resultDiv.value = logarr.join('\\n').trim();
