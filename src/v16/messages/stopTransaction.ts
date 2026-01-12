@@ -6,6 +6,8 @@ import {
 } from "../../ocppMessage";
 import type { VCP } from "../../vcp";
 import { IdTagInfoSchema, IdTokenSchema, MeterValueSchema } from "./_common";
+import { delay } from "../../utils";
+import { statusNotificationOcppMessage } from "./statusNotification";
 
 const StopTransactionReqSchema = z.object({
   idTag: IdTokenSchema.nullish(),
@@ -45,7 +47,17 @@ class StopTransactionOcppMessage extends OcppOutgoing<
     call: OcppCall<z.infer<StopTransactionReqType>>,
     _result: OcppCallResult<z.infer<StopTransactionResType>>,
   ): Promise<void> => {
+    const connectId = vcp.transactionManager.getConnectorId(call.payload.transactionId);
     vcp.transactionManager.stopTransaction(call.payload.transactionId);
+    await delay(500);
+    vcp.send(
+      statusNotificationOcppMessage.request({
+        connectorId: connectId,
+        errorCode: "NoError",
+        status: "Available",
+        timestamp: new Date().toISOString(),
+      }),
+    );
   };
 }
 

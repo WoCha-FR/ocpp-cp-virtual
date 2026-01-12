@@ -22,6 +22,10 @@ import {
 } from "./schemaValidator";
 import { TransactionManager } from "./transactionManager";
 import { heartbeatOcppMessage } from "./v16/messages/heartbeat";
+import { stopTransactionOcppMessage } from "./v16/messages/stopTransaction";
+
+import fs from "node:fs";
+import { adminPage } from "../admin/adminui"
 
 interface VCPOptions {
   ocppVersion: OcppVersion;
@@ -44,12 +48,23 @@ export class VCP {
   private messageHandler: OcppMessageHandler;
 
   private isFinishing = false;
+  private reconnectInterval?: NodeJS.Timeout;
 
   transactionManager = new TransactionManager();
 
   constructor(private vcpOptions: VCPOptions) {
     this.messageHandler = resolveMessageHandler(vcpOptions.ocppVersion);
+
+    process.on('SIGINT', this.preClose.bind(this, 0));
+    process.on('SIGTERM', this.preClose.bind(this, 0));
+
     if (vcpOptions.adminPort) {
+      const cpNbSockets = Number.parseInt(process.env.CP_NB_SOCKETS ?? "1");
+      const cpVendor = process.env.CP_VENDOR ?? "Solidstudio";
+      const cpModel = process.env.CP_MODEL ?? "VirtualChargePoint";
+      const cpSerialN = process.env.CP_SN ?? "VCP-0001";
+      const cpFwVersion = process.env.CP_FW_VERSION ?? "1.0.0";
+
       const adminApi = new Hono();
       adminApi.post(
         "/execute",
@@ -62,19 +77,36 @@ export class VCP {
         ),
         (c) => {
           const validated = c.req.valid("json");
+          /* Get meter values on StopTransaction*/
+          if (validated.action === "StopTransaction") {
+            validated.payload.meterStop = this.transactionManager.getMeterValue(
+              validated.payload.transactionId,
+            );
+          }
+          /* Execute OCPP Action */
           this.send(call(validated.action, validated.payload));
           return c.text("OK");
         },
       );
+      /* Admin Page - Only V16 */
+      adminApi.get("/", (c) => {
+        return c.html(adminPage(vcpOptions.chargePointId, cpNbSockets, cpVendor, cpModel, cpSerialN, cpFwVersion));
+      });
+      /* Admin logs endpoint */
+      adminApi.post("/logs", async (c) => {
+        const file = fs.readFileSync('./vcp.log', 'utf-8');
+        return c.text(file);
+      });
       serve({
         fetch: adminApi.fetch,
         port: vcpOptions.adminPort,
+        hostname: "0.0.0.0",
       });
     }
   }
 
   async connect(): Promise<void> {
-    logger.info(`Connecting... | ${util.inspect(this.vcpOptions)}`);
+    logger.info(`Connecting...`);
     this.isFinishing = false;
     return new Promise((resolve) => {
       const websocketUrl = `${this.vcpOptions.endpoint}/${this.vcpOptions.chargePointId}`;
@@ -91,25 +123,34 @@ export class VCP {
         },
       });
 
-      this.ws.on("open", () => resolve());
+      this.ws.on("open", () => {
+        this.ws?.removeAllListeners("error");
+        this.ws?.on("error", (error: Error) => {
+          this._wsError(error);
+        });
+        logger.info(`WebSocket connection established | ${util.inspect(this.vcpOptions)}`);
+        resolve();
+      });
+
       this.ws.on("message", (message: string) => this._onMessage(message));
-      this.ws.on("ping", () => {
-        logger.info("Received PING");
-      });
-      this.ws.on("pong", () => {
-        logger.info("Received PONG");
-      });
+
       this.ws.on("close", (code: number, reason: string) =>
         this._onClose(code, reason),
       );
+
+      this.ws.on("error", (error: Error) => {
+        logger.error(`${this.vcpOptions.chargePointId}:${this.vcpOptions.ocppVersion} - ${error.message}`);
+      });
     });
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: ocpp types
   send(ocppCall: OcppCall<any>) {
     if (!this.ws) {
-      throw new Error("Websocket not initialized. Call connect() first");
+      logger.error("Websocket not initialized. Call connect() first");
+      return;
     }
+
     ocppOutbox.enqueue(ocppCall);
     const jsonMessage = JSON.stringify([
       2,
@@ -129,7 +170,8 @@ export class VCP {
   // biome-ignore lint/suspicious/noExplicitAny: ocpp types
   respond(result: OcppCallResult<any>) {
     if (!this.ws) {
-      throw new Error("Websocket not initialized. Call connect() first");
+      logger.error("Websocket not initialized. Call connect() first");
+      return;
     }
     const jsonMessage = JSON.stringify([3, result.messageId, result.payload]);
     logger.info(`Responding with ➡️  ${jsonMessage}`);
@@ -144,7 +186,8 @@ export class VCP {
   // biome-ignore lint/suspicious/noExplicitAny: ocpp types
   respondError(error: OcppCallError<any>) {
     if (!this.ws) {
-      throw new Error("Websocket not initialized. Call connect() first");
+      logger.error("Websocket not initialized. Call connect() first");
+      return;
     }
     const jsonMessage = JSON.stringify([
       4,
@@ -157,22 +200,54 @@ export class VCP {
     this.ws.send(jsonMessage);
   }
 
+  configureReconnect() {
+    if (this.reconnectInterval) {
+      return;
+    }
+    this.reconnectInterval = setInterval(async () => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        logger.info("Trying to reconnect...");
+        try { await this.connect();} catch (e) {logger.error("Failed to reconnect: " + e) }
+      }
+    }, 10000);
+  }
+
   configureHeartbeat(interval: number) {
     setInterval(() => {
       this.send(heartbeatOcppMessage.request({}));
     }, interval);
   }
 
+  async preClose(exitCode: number) {
+    logger.info('The process is shutting down...')
+    if (exitCode || exitCode === 0) logger.info(`Exit code: ${exitCode}`)
+    // Stop Transactions
+    if (toProtocolVersion(this.vcpOptions.ocppVersion) === "ocpp1.6") {
+      this.transactionManager.transactions.forEach((_, tId) => {
+        logger.info(`Stopping transaction ${tId} before closing connection`);
+        this.send(stopTransactionOcppMessage.request({
+          transactionId: Number(tId),
+          timestamp: new Date().toISOString(),
+          meterStop: this.transactionManager.getMeterValue(Number(tId)),
+          reason: "EmergencyStop",
+        }));
+      });
+    }
+    this.close();
+    process.exit();
+  }
+
   close() {
     if (!this.ws) {
-      throw new Error(
-        "Trying to close a Websocket that was not opened. Call connect() first",
-      );
+      logger.info("Websocket not initialized");
     }
     this.isFinishing = true;
-    this.ws.close();
+    this.ws?.close();
     this.ws = undefined;
-    process.exit(1);
+    if (this.reconnectInterval) {
+      logger.info("Clearing reconnect interval");
+      clearInterval(this.reconnectInterval);
+    }
   }
 
   async getDiagnosticData(): Promise<LogEntry[]> {
@@ -258,10 +333,16 @@ export class VCP {
   }
 
   private _onClose(code: number, reason: string) {
+    logger.info(`Connection closed. code=${code}, reason=${reason}`);
     if (this.isFinishing) {
       return;
     }
-    logger.info(`Connection closed. code=${code}, reason=${reason}`);
-    process.exit();
+    logger.info("Configure reconnect...");
+    this.configureReconnect();
+  }
+
+  private _wsError(error?: Error) {
+    logger.error(`Websocket error: ${error?.message}`);
+    this.close();
   }
 }

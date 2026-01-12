@@ -24,30 +24,47 @@ Configure env variables:
 WS_URL - websocket endpoint
 CP_ID - ID of this VCP
 PASSWORD - if used for OCPP Authentication, otherwise can be left blank
+ADMIN_PORT - port for admin access (default is 9999), can be left blank
+LOG_LEVEL - Log level, can be left blank
+
+CP_TYPE - available chargepoint types to start, allowed values: 16, 20, 21 (default is 16)
+POWER - Chargepoint power in kW
+CP_NB_SOCKETS - number of connectors of chargepoint (default is 1)
+CP_VENDOR - Chargepoint vendor, can be left blank
+CP_MODEL - Chargepoint model, can be left blank
+CP_SN - Chargepoint serial Number, can be left blank
+CP_FW_VERSION - Chargepoint serial number, can be left blank
+CP_METER_INTERVALSEC - Interval in seconds for metervalue in transaction, can be left blank
 ```
 
 Run OCPP 1.6:
 
 ```bash
-npx tsx index_16.ts
+WS_URL=ws://localhost:3000 CP_ID=vcp_16_test CP_TYPE=16 npx tsx ./start.ts
 ```
 
 Run OCPP 2.0.1:
 
 ```bash
-npx tsx index_201.ts
+WS_URL=ws://localhost:3000 CP_ID=vcp_201_test CP_TYPE=20 npx tsx ./start.ts
+```
+
+Run OCPP 2.1:
+
+```bash
+WS_URL=ws://localhost:3000 CP_ID=vcp_21_test CP_TYPE=21 npx tsx ./start.ts
 ```
 
 When testing different configurations, you can create multiple `.env` files and pass the env file as an argument, for example:
 
 ```bash
-npm start -- --env-file=.env index_16.ts
+npx tsx --env-file=.env2 ./start.ts
 ```
 
 ## Example
 
 ```bash
-> WS_URL=ws://localhost:3000 CP_ID=vcp_16_test npx tsx index_16.ts
+> WS_URL=ws://localhost:3000 CP_ID=vcp_16_test npx tsx ./start.ts
 
 2023-03-27 13:09:17 info: Connecting... | {
   endpoint: 'ws://localhost:3000',
@@ -70,6 +87,11 @@ npm start -- --env-file=.env index_16.ts
 2023-03-27 13:10:17 info: Receive message ⬅️  [3,"79a41b2e-2c4a-4a65-9d7e-417967a8f95f",{"currentTime":"2023-03-27T11:10:17.955Z"}]
 ```
 
+## Running VCP in Docker
+```
+cd docker && docker compose up --build
+```
+
 ## Executing Admin Commands
 
 Some messages are automatically sent by the VCP, for example, `BootNotification` or `StartTransaction` and `StopTransaction`.
@@ -80,6 +102,10 @@ For example usage, see `admin/` folder.
 ```bash
 npx tsx admin/v16/Authorize/authorize.ts
 ```
+
+## Admin Commands Web Interface
+
+You can send admin commands by a simple web interface available at http://your-ip-address:ADMIN_PORT
 
 ---
 
