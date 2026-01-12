@@ -106,7 +106,7 @@ export class VCP {
   }
 
   async connect(): Promise<void> {
-    logger.info(`Connecting...`);
+    logger.info("Connecting...");
     this.isFinishing = false;
     return new Promise((resolve) => {
       const websocketUrl = `${this.vcpOptions.endpoint}/${this.vcpOptions.chargePointId}`;
@@ -207,9 +207,9 @@ export class VCP {
     this.reconnectInterval = setInterval(async () => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         logger.info("Trying to reconnect...");
-        try { await this.connect();} catch (e) {logger.error("Failed to reconnect: " + e) }
+        try { await this.connect();} catch (e) {logger.error(`Failed to reconnect: ${e}`) }
       }
-    }, 10000);
+    }, 15000);
   }
 
   configureHeartbeat(interval: number) {
