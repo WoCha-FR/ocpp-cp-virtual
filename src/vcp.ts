@@ -48,6 +48,7 @@ export class VCP {
   private messageHandler: OcppMessageHandler;
 
   private isFinishing = false;
+  private reconnectInterval?: NodeJS.Timeout;
 
   transactionManager = new TransactionManager();
 
@@ -105,7 +106,7 @@ export class VCP {
   }
 
   async connect(): Promise<void> {
-    logger.info(`Connecting... | ${util.inspect(this.vcpOptions)}`);
+    logger.info(`Connecting...`);
     this.isFinishing = false;
     return new Promise((resolve) => {
       const websocketUrl = `${this.vcpOptions.endpoint}/${this.vcpOptions.chargePointId}`;
@@ -122,25 +123,34 @@ export class VCP {
         },
       });
 
-      this.ws.on("open", () => resolve());
+      this.ws.on("open", () => {
+        this.ws?.removeAllListeners("error");
+        this.ws?.on("error", (error: Error) => {
+          this._wsError(error);
+        });
+        logger.info(`WebSocket connection established | ${util.inspect(this.vcpOptions)}`);
+        resolve();
+      });
+
       this.ws.on("message", (message: string) => this._onMessage(message));
-      this.ws.on("ping", () => {
-        // logger.info("Received PING");
-      });
-      this.ws.on("pong", () => {
-        logger.info("Received PONG");
-      });
+
       this.ws.on("close", (code: number, reason: string) =>
         this._onClose(code, reason),
       );
+
+      this.ws.on("error", (error: Error) => {
+        logger.error(`${this.vcpOptions.chargePointId}:${this.vcpOptions.ocppVersion} - ${error.message}`);
+      });
     });
   }
 
   // biome-ignore lint/suspicious/noExplicitAny: ocpp types
   send(ocppCall: OcppCall<any>) {
     if (!this.ws) {
-      throw new Error("Websocket not initialized. Call connect() first");
+      logger.error("Websocket not initialized. Call connect() first");
+      return;
     }
+
     ocppOutbox.enqueue(ocppCall);
     const jsonMessage = JSON.stringify([
       2,
@@ -160,7 +170,8 @@ export class VCP {
   // biome-ignore lint/suspicious/noExplicitAny: ocpp types
   respond(result: OcppCallResult<any>) {
     if (!this.ws) {
-      throw new Error("Websocket not initialized. Call connect() first");
+      logger.error("Websocket not initialized. Call connect() first");
+      return;
     }
     const jsonMessage = JSON.stringify([3, result.messageId, result.payload]);
     logger.info(`Responding with ➡️  ${jsonMessage}`);
@@ -175,7 +186,8 @@ export class VCP {
   // biome-ignore lint/suspicious/noExplicitAny: ocpp types
   respondError(error: OcppCallError<any>) {
     if (!this.ws) {
-      throw new Error("Websocket not initialized. Call connect() first");
+      logger.error("Websocket not initialized. Call connect() first");
+      return;
     }
     const jsonMessage = JSON.stringify([
       4,
@@ -186,6 +198,18 @@ export class VCP {
     ]);
     logger.info(`Responding with ➡️  ${jsonMessage}`);
     this.ws.send(jsonMessage);
+  }
+
+  configureReconnect() {
+    if (this.reconnectInterval) {
+      return;
+    }
+    this.reconnectInterval = setInterval(async () => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        logger.info("Trying to reconnect...");
+        try { await this.connect();} catch (e) {logger.error("Failed to reconnect: " + e) }
+      }
+    }, 10000);
   }
 
   configureHeartbeat(interval: number) {
@@ -210,17 +234,20 @@ export class VCP {
       });
     }
     this.close();
+    process.exit();
   }
+
   close() {
     if (!this.ws) {
-      throw new Error(
-        "Trying to close a Websocket that was not opened. Call connect() first",
-      );
+      logger.info("Websocket not initialized");
     }
     this.isFinishing = true;
-    this.ws.close();
+    this.ws?.close();
     this.ws = undefined;
-    process.exit(1);
+    if (this.reconnectInterval) {
+      logger.info("Clearing reconnect interval");
+      clearInterval(this.reconnectInterval);
+    }
   }
 
   async getDiagnosticData(): Promise<LogEntry[]> {
@@ -306,10 +333,16 @@ export class VCP {
   }
 
   private _onClose(code: number, reason: string) {
+    logger.info(`Connection closed. code=${code}, reason=${reason}`);
     if (this.isFinishing) {
       return;
     }
-    logger.info(`Connection closed. code=${code}, reason=${reason}`);
-    process.exit();
+    logger.info("Configure reconnect...");
+    this.configureReconnect();
+  }
+
+  private _wsError(error?: Error) {
+    logger.error(`Websocket error: ${error?.message}`);
+    this.close();
   }
 }
