@@ -28,7 +28,7 @@ ADMIN_PORT - port for admin access (default is 9999), can be left blank
 LOG_LEVEL - Log level, can be left blank
 
 CP_TYPE - available chargepoint types to start, allowed values: 16, 20, 21 (default is 16)
-POWER - Chargepoint power in kW
+POWER - Chargepoint power in kW (7.4 or 22 for example), can be left blank. (default is 7.4)
 CP_NB_SOCKETS - number of connectors of chargepoint (default is 1)
 CP_VENDOR - Chargepoint vendor, can be left blank
 CP_MODEL - Chargepoint model, can be left blank

@@ -42,6 +42,7 @@ class RemoteStopTransactionOcppMessage extends OcppIncoming<
     vcp.send(
       stopTransactionOcppMessage.request({
         transactionId: transactionId,
+        reason: "Remote",
         meterStop: Math.floor(
           vcp.transactionManager.getMeterValue(transactionId),
         ),

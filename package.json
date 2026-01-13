@@ -1,6 +1,6 @@
 {
   "name": "ocpp-cp-virtual",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Simple OCPP Virtual Charging Point",
   "scripts": {
     "lint": "biome lint src start.ts",
@@ -15,7 +15,7 @@
     {
       "name": "WoCha-FR",
       "url": "https://github.com/WoCha-FR/"
-      }
+    }
   ],
   "license": "Apache-2.0",
   "dependencies": {
@@ -25,7 +25,7 @@
     "basic-ftp": "^5.1.0",
     "dayjs": "^1.11.19",
     "dotenv": "^16.6.1",
-    "hono": "^4.11.3",
+    "hono": "^4.11.4",
     "typescript": "^5.9.3",
     "uuid": "^8.3.2",
     "winston": "^3.19.0",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
-    "@types/node": "^25.0.6",
+    "@types/node": "^25.0.7",
     "@types/uuid": "^8.3.4",
     "@types/ws": "^8.18.1",
     "rimraf": "^6.1.2",

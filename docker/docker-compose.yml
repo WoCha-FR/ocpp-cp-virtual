@@ -13,4 +13,4 @@ services:
     ports:
       - "9999:9999"
     restart: unless-stopped
-    entrypoint: [ "node", "dist/start.js" ]
+    entrypoint: [ "node", "start.js" ]

@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 import { z } from "zod";
 import {
   type OcppCall,
@@ -10,7 +12,7 @@ import { meterValuesOcppMessage } from "./meterValues";
 import { stopTransactionOcppMessage } from "./stopTransaction";
 import { statusNotificationOcppMessage } from "./statusNotification";
 
-const POWER = Number.parseFloat(process.env.POWER ?? "7");
+const POWER = Number.parseFloat(process.env.POWER ?? "7.4");
 
 const StartTransactionReqSchema = z.object({
   connectorId: ConnectorIdSchema,
@@ -63,6 +65,7 @@ class StartTransactionOcppMessage extends OcppOutgoing<
       transactionId: result.payload.transactionId,
       idTag: call.payload.idTag,
       connectorId: call.payload.connectorId,
+      maxPower: POWER,
       meterValuesCallback: async (transactionState) => {
         vcp.send(
           meterValuesOcppMessage.request({
@@ -79,9 +82,42 @@ class StartTransactionOcppMessage extends OcppOutgoing<
                     context: "Sample.Periodic",
                   },
                   {
-                    value: POWER.toFixed(3),
+                    value: transactionState.maxPower.toString(),
+                    measurand: "Power.Offered",
+                    unit: "kW",
+                    context: "Sample.Periodic",
+                  },
+                  {
+                    value: transactionState.actPower.toString(),
                     measurand: "Power.Active.Import",
                     unit: "kW",
+                    context: "Sample.Periodic",
+                  },
+                  {
+                    value: transactionState.currentOffered.toString(),
+                    measurand: "Current.Offered",
+                    unit: "A",
+                    context: "Sample.Periodic",
+                  },
+                  {
+                    value: transactionState.currentL1.toString(),
+                    measurand: "Current.Import",
+                    unit: "A",
+                    phase: "L1",
+                    context: "Sample.Periodic",
+                  },
+                  {
+                    value: transactionState.currentL2.toString(),
+                    measurand: "Current.Import",
+                    unit: "A",
+                    phase: "L2",
+                    context: "Sample.Periodic",
+                  },
+                  {
+                    value: transactionState.currentL3.toString(),
+                    measurand: "Current.Import",
+                    unit: "A",
+                    phase: "L3",
                     context: "Sample.Periodic",
                   },
                 ],
