@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 import * as uuid from "uuid";
 import { z } from "zod";
 import { type OcppCall, OcppIncoming } from "../../ocppMessage";
@@ -9,6 +11,8 @@ import {
 } from "./_common";
 import { statusNotificationOcppOutgoing } from "./statusNotification";
 import { transactionEventOcppOutgoing } from "./transactionEvent";
+
+const POWER = Number.parseFloat(process.env.POWER ?? "7.4");
 
 const RequestStartTransactionReqSchema = z.object({
   evseId: z.number().int().nullish(),
@@ -42,6 +46,7 @@ class RequestStartTransactionOcppIncoming extends OcppIncoming<
       idTag: call.payload.idToken.idToken,
       evseId: transactionEvseId,
       connectorId: transactionConnectorId,
+      maxPower: POWER,
       meterValuesCallback: async (transactionStatus) => {
         vcp.send(
           transactionEventOcppOutgoing.request({

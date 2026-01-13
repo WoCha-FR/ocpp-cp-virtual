@@ -15,6 +15,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./
+COPY ./cert ./cert
 
 EXPOSE 9999
 
