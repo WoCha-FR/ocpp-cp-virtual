@@ -54,7 +54,7 @@ class StopTransactionOcppMessage extends OcppOutgoing<
       statusNotificationOcppMessage.request({
         connectorId: connectId,
         errorCode: "NoError",
-        status: "Available",
+        status: "Finishing",
         timestamp: new Date().toISOString(),
       }),
     );

@@ -69,7 +69,7 @@ class RemoteStopTransactionOcppMessage extends OcppIncoming<
       statusNotificationOcppMessage.request({
         connectorId: transaction.connectorId,
         errorCode: "NoError",
-        status: "Available",
+        status: "Finishing",
       }),
     );
   };

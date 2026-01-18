@@ -132,4 +132,4 @@ dist
 .vscode
 .history
 
-docker/docker-compose.dev.yml
+docker/docker-compose-dev.yml
