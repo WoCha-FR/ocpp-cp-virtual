@@ -54,6 +54,9 @@ function generateConnectorControls16(connectors: number, cpVendor: string, cpMod
                 <button class="btn btn-outline-light" onclick="setStatus(${i}, 'Preparing')">Set Preparing</button>
                 <button class="btn btn-outline-light" onclick="setStatus(${i}, 'Unavailable')">Set Unavailable</button>
                 <button class="btn btn-outline-light" onclick="setStatus(${i}, 'Reserved')">Set Reserved</button>
+                <button class="btn btn-outline-light" onclick="setStatus(${i}, 'SuspendedEV')">Set SuspendedEV</button>
+                <button class="btn btn-outline-light" onclick="setStatus(${i}, 'SuspendedEVSE')">Set SuspendedEVSE</button>
+                <button class="btn btn-outline-light" onclick="setStatus(${i}, 'Finishing')">Set Finishing</button>
               </div>
             </div>
             <div class="col-12 col-lg-3">
