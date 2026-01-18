@@ -21,6 +21,10 @@ EXPOSE 9999
 
 CMD ["node", "start.js"]
 
-LABEL org.opencontainers.image.source="https://github.com/WoCha-FR/ocpp-cp-virtual"
+LABEL org.opencontainers.image.title="OCPP Virtual Charge Point"
 LABEL org.opencontainers.image.description="Simple OCPP Virtual Charging Point"
+LABEL org.opencontainers.image.documentation="https://github.com/WoCha-FR/ocpp-cp-virtual#README.md"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.source="https://github.com/WoCha-FR/ocpp-cp-virtual"
+LABEL org.opencontainers.image.url="https://github.com/WoCha-FR/ocpp-cp-virtual"
+LABEL org.opencontainers.image.version="1.1.1"
